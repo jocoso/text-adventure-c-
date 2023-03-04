@@ -3,6 +3,9 @@
 #include <conio.h>
 #include <stdlib.h>
 
+#define MAX_NUM_ITEMS 10
+
+// Data Types
 struct st_object {
 	std::string name, color, material, status;
 	struct st_object* next;
@@ -19,16 +22,25 @@ struct st_grid {
 	struct st_space east, west, north, south, center;
 };
 
-struct ch_player {
-	std::string name;
-	int position;
-	struct st_grid current_grid;
+struct ch_inventory {
+	int num_items;
+	struct st_object* items;
 };
 
+struct ch_player {
+	std::string name;
+	struct st_grid *current_grid;
+	struct ch_inventory inventory;
+};
+
+// Implementation
 struct st_grid world[3][3];
-struct ch_player player = {.name="", .current_grid = NULL };
+struct ch_player player = { .name = "", .current_grid = NULL, .inventory = { .num_items = 0, .items = NULL } };
+struct st_object *tmp_obj = NULL;
 int id_count = 0;
 
+
+// Adds a new object to the linked list
 st_object* add_newobject(st_object* obj, std::string name, std::string color, std::string material, std::string status) {
 	st_object* o = obj;
 
@@ -56,6 +68,18 @@ st_object* add_newobject(st_object* obj, std::string name, std::string color, st
 	return NULL;
 }
 
+st_object* remove_object(st_object* obj) {
+	st_object* o = obj;
+
+	if (o == NULL) return NULL;
+	else {
+		o = o->next;
+	}
+
+	return NULL;
+}
+
+// Clean up memory
 void clean_space(st_space *spc) {
 	if (spc == NULL) return;
 
@@ -84,6 +108,11 @@ void clean_grid(st_grid *grid) {
 void setup_map(void) {
 	st_object *obj;
 	world[0][0].created = true;
+	world[0][0].visible = false;
+
+	obj = add_newobject(player.inventory.items, "LATERN", "black", "sturdy plastic", "off");
+	player.inventory.items = obj;
+	player.inventory.items += 1;
 
 	// GRID 0, 0 NORTH
 	world[0][0].north.created = true;
@@ -110,33 +139,50 @@ void setup_map(void) {
 	world[0][0].center.objects = obj;
 }
 
-void describe_space(st_grid *grid) {
-	std::cout << grid->north->info << std::endl;
-	
-	st_object* obj = grid->north->objects;
+void describe_space(st_space* space) {
+	std::cout << space->info << std::endl;
 
-	if(obj != NULL) std::cout << "You can see: " << std::endl;
-	while (obj != NULL) {
-		std::cout << "A " << obj->status << " " << obj->color << " " << obj->name << " made out of " << obj->material << std::endl;
-		obj = obj->next;
+	std::cout << "Where you can interact with: " << std::endl;
+	tmp_obj = space->objects;
+
+	while (tmp_obj != NULL) {
+		std::cout << tmp_obj->name << std::endl;
+		tmp_obj = tmp_obj->next;
 	}
+	
+}
 
+void describe_grid(st_grid *grid) {
 
+	if (grid->visible) {
+		std::cout << "At your left there is ";
+		describe_space(&grid->west);
+	}
+	else {
+		std::cout << "It is dark around. You will have to find a source of light if you'd like to see something.\n\n";
+	}
+	
+}
+
+void describe_inventory(const ch_inventory* inventory) {
+	std::cout << "=== INVENTORY ===\n\n";
+	
+	st_object* ob = inventory->items;
+
+	for(int i = 0; i < inventory->num_items; i++) {
+		std::cout << "-" << ob->name << std::endl;
+		ob = ob->next;
+	}
 }
 
 void setup_player(void) {
 
-	player.current_space = world[0][0];
+	player.current_grid = &world[0][0];
 
-	char name[50];
-	std::cout << "What is your name, sacrifice?" << std::endl;
-	std::cout << "> ";
-	std::cin.getline(name, 50);
-	player.name = name;
+	
 
-	std::cout << "My condolences, " << player.name << ". You deserved better." << std::endl;
-	std::cout << "-------------- press enter to continue --------------" << std::endl;
-	_getch();
+	std::cout << "You open your eyes. Pitch black greets you.\n";
+	std::cout << "The air smells like ash and decay\n\n";
 }
 
 
@@ -149,13 +195,19 @@ bool analyze_text(std::string input) {
 
 	else if (input.find("LOOK") != std::string::npos) {
 		if (input.find("AROUND") != std::string::npos) {
-			describe_space(&player.current_space);
+			describe_grid(player.current_grid);
+		}
+	}
+
+	else if (input.find("CHECK") != std::string::npos) {
+		if (input.find("INVENTORY") != std::string::npos) {
+			describe_inventory(&player.inventory);
 		}
 	}
 	
 	else if (input.find("MOVE") != std::string::npos) {
 		if (input.find("NORTH") != std::string::npos) {
-			// move nort
+			// move north
 		}
 		else if (input.find("EAST") != std::string::npos) {
 			// move east
