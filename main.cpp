@@ -31,11 +31,20 @@ struct ch_player {
 	std::string name;
 	struct st_grid *current_grid;
 	struct ch_inventory inventory;
+	struct st_object *equip_slot_rHand;
+	struct st_object *equip_slot_lHand;
 };
 
 // Implementation
 struct st_grid world[3][3];
-struct ch_player player = { .name = "", .current_grid = NULL, .inventory = { .num_items = 0, .items = NULL } };
+struct ch_player player = { 
+	.name = "", 
+	.current_grid = NULL, 
+	.inventory = { .num_items = 0, .items = NULL }, 
+	.equip_slot_rHand = NULL,
+	.equip_slot_lHand = NULL
+};
+
 struct st_object *tmp_obj = NULL;
 int id_count = 0;
 
@@ -68,16 +77,6 @@ st_object* add_newobject(st_object* obj, std::string name, std::string color, st
 	return NULL;
 }
 
-st_object* remove_object(st_object* obj) {
-	st_object* o = obj;
-
-	if (o == NULL) return NULL;
-	else {
-		o = o->next;
-	}
-
-	return NULL;
-}
 
 // Clean up memory
 void clean_space(st_space *spc) {
@@ -109,10 +108,6 @@ void setup_map(void) {
 	st_object *obj;
 	world[0][0].created = true;
 	world[0][0].visible = false;
-
-	obj = add_newobject(player.inventory.items, "LATERN", "black", "sturdy plastic", "off");
-	player.inventory.items = obj;
-	player.inventory.items += 1;
 
 	// GRID 0, 0 NORTH
 	world[0][0].north.created = true;
@@ -164,27 +159,53 @@ void describe_grid(st_grid *grid) {
 	
 }
 
-void describe_inventory(const ch_inventory* inventory) {
-	std::cout << "=== INVENTORY ===\n\n";
-	
-	st_object* ob = inventory->items;
+st_object *search(st_object *root, std::string name) {
+	if(name.empty() || root == NULL) return NULL;
 
-	for(int i = 0; i < inventory->num_items; i++) {
-		std::cout << "-" << ob->name << std::endl;
-		ob = ob->next;
+	st_object *o = root;
+
+	while(o != NULL) {
+
+		if(name.find(o->name) != std::string::npos) return o;
+		o = o->next;
+
+	} 
+
+	return NULL;
+}
+
+void describe_inventory(const ch_inventory* inventory) {
+
+	if(inventory->num_items > 0) {
+		std::cout << "=== INVENTORY ===\n";
+		
+		st_object* ob = inventory->items;
+
+		for(int i = 0; i < inventory->num_items; i++) {
+			std::cout << "-" << ob->name << std::endl << "\n";
+			ob = ob->next;
+		}
+	} else {
+		std::cout << "The inventory is empty" << std::endl;
 	}
 }
 
 void setup_player(void) {
 
 	player.current_grid = &world[0][0];
-
-	
-
-	std::cout << "You open your eyes. Pitch black greets you.\n";
-	std::cout << "The air smells like ash and decay\n\n";
+	st_object *obj = add_newobject(player.inventory.items, "LATERN", "black", "sturdy plastic", "off");
+	player.inventory.items = obj;
+	player.inventory.num_items += 1;
 }
 
+void play_intro(void) {
+	std::cout << "You open your eyes. Pitch black greets you.\n\n";
+	std::cout << "The air smells like ash and decay.\n\n";
+	std::cout << "You hear a noise outside and the sound of approaching steps followed by ";
+	std::cout << "an opening rectangle of white light that frames familiar eyes.\n\n";
+	std::cout << "You catch two dry sounds before the light vanishes.\n\n";
+	std::cout << "Something rolls towards and touches your naked feet.\n\nYour fingers touch its cold, soft surface; it is a latern\n\n";
+}
 
 
 bool analyze_text(std::string input) {
@@ -202,6 +223,46 @@ bool analyze_text(std::string input) {
 	else if (input.find("CHECK") != std::string::npos) {
 		if (input.find("INVENTORY") != std::string::npos) {
 			describe_inventory(&player.inventory);
+		}
+	}
+
+	else if(input.find("EQUIP") != std::string::npos) {
+		
+		st_object *o = search(player.inventory.items, input);
+		if(o != NULL && player.inventory.num_items > 0) {
+			if(input.find("RIGHT") != std::string::npos) {
+				player.equip_slot_rHand = o;
+				player.inventory.num_items -= 1;
+				std::cout << o->name << " was equippted in right hand\n\n";
+			} else if(input.find("LEFT") != std::string::npos) {
+				player.equip_slot_lHand = o;
+				player.inventory.num_items -= 1;
+				std::cout << o->name << " was equipted in left hand\n\n";
+			} else {
+				std::cout << "Try equipping in RIGHT or LEFT hand";
+			}
+		} else {
+			std::cout << "Cannot EQUIP that item\n\n" << std::endl;
+		}
+
+	}
+
+	else if(input.find("TURN") != std::string::npos) {
+
+		if(player.equip_slot_rHand != NULL && input.find(player.equip_slot_rHand->name) != std::string::npos) {
+			
+			if(input.find("ON") != std::string::npos) {
+				player.equip_slot_rHand->status = "on";
+				std::cout << player.equip_slot_rHand->name << " now is on\n\n";
+			} else if(input.find("OFF") != std::string::npos) {
+				player.equip_slot_rHand->status = "off";
+				std::cout << player.equip_slot_rHand->name << " now is off\n\n";
+			} else {
+				std::cout << "Try TURNING " << player.equip_slot_rHand->name << " ON or OFF\n\n";
+			}
+
+		} else {
+			std::cout << "Turn what?" << std::endl;
 		}
 	}
 	
@@ -235,6 +296,7 @@ void init(void) {
 	setup_map();
 	setup_player();
 
+	play_intro();
 
 	std::string input = "LOOK AROUND";
 
