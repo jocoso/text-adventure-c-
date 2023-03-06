@@ -67,7 +67,7 @@ st_object* add_newobject(st_object* obj, std::string name, std::string color, st
 			o = o->next;
 		}
 
-		o->next = (struct st_object*) malloc(sizeof(st_object));
+		o->next = new st_object;
 		o->next->name = name;
 		o->next->color = color;
 		o->next->material = material;
@@ -114,25 +114,23 @@ void setup_map(void) {
 	world[0][0].north.created = true;
 	world[0][0].north.info = "After the door closes behind you. with a loud BANG! You find yourself in an ill iluminated room. There is a putrid smell coating the air.";
 	obj = add_newobject(world[0][0].north.objects, "door", "black", "wood", "locked");
-	world[0][0].north.objects = obj;
+	obj = add_newobject(world[0][0].north.objects, "notebook", "red", "leather", "worn out");
 
 	// GRID 0,0 EAST
 	world[0][0].east.created = true;
 	world[0][0].east.info = ".";
 	obj = add_newobject(world[0][0].east.objects, "air", "dark", "gas", "rotten");
-	world[0][0].east.objects = obj;
 
 	// GRID 0, 0 WEST
 	world[0][0].west.created = true;
 	world[0][0].west.info = "a Door to the next room.";
 	obj = add_newobject(world[0][0].west.objects, "door", "brown", "wooden", "destroyed");
-	world[0][0].west.objects = obj;
+
 
 	//// GRID 0, 0 CENTER
 	world[0][0].center.created = true;
 	world[0][0].center.info = "The floor is decorated with a symbol. The symbol is magical in nature.";
 	obj = add_newobject(world[0][0].center.objects, "symbol", "black", "ink", "incomplete");
-	world[0][0].center.objects = obj;
 }
 
 void describe_space(st_space* space) {
@@ -151,7 +149,9 @@ void describe_space(st_space* space) {
 void describe_grid(st_grid *grid) {
 
 	if (grid->visible) {
-		std::cout << "At your left there is ";
+		describe_space(&grid->north);
+		describe_space(&grid->east);
+		describe_space(&grid->south);
 		describe_space(&grid->west);
 	}
 	else {
@@ -218,10 +218,12 @@ void play_intro(void) {
 
 bool analyze_text(std::string input) {
 
+	// QUIT main loop
 	if (input.find("QUIT") != std::string::npos) {
 		return false;
 	}
 
+	// Describe current room
 	else if (input.find("LOOK") != std::string::npos) {
 		if (input.find("AROUND") != std::string::npos) {
 			describe_grid(player.current_grid);
@@ -234,6 +236,7 @@ bool analyze_text(std::string input) {
 		}
 	}
 
+	// EQUIP ITEM_NAME RIGHT/LEFT
 	else if(input.find("EQUIP") != std::string::npos) {
 		
 		st_object *o = search(player.inventory.items, input);
