@@ -1,4 +1,5 @@
-#include <string>
+#include <string.h>
+#include <stdio.h>
 #include <iostream>
 #include <conio.h>
 #include <stdlib.h>
@@ -190,21 +191,28 @@ void describe_inventory(const ch_inventory* inventory) {
 	}
 }
 
+void add_to_inventory(std::string name, std::string color, std::string material, std::string state) {
+	st_object *obj = add_newobject(player.inventory.items, name, color, material, state);
+	player.inventory.items = obj;
+	player.inventory.num_items += 1;
+
+	std::cout << "====== " << name << " added to your inventory ======\n\n";
+}
+
 void setup_player(void) {
 
 	player.current_grid = &world[0][0];
-	st_object *obj = add_newobject(player.inventory.items, "LATERN", "black", "sturdy plastic", "off");
-	player.inventory.items = obj;
-	player.inventory.num_items += 1;
+	add_to_inventory("FLASHLIGHT", "black", "hard plastic", "off");
+	
 }
 
 void play_intro(void) {
 	std::cout << "You open your eyes. Pitch black greets you.\n\n";
-	std::cout << "The air smells like ash and decay.\n\n";
-	std::cout << "You hear a noise outside and the sound of approaching steps followed by ";
-	std::cout << "an opening rectangle of white light that frames familiar eyes.\n\n";
-	std::cout << "You catch two dry sounds before the light vanishes.\n\n";
-	std::cout << "Something rolls towards and touches your naked feet.\n\nYour fingers touch its cold, soft surface; it is a latern\n\n";
+	std::cout << "The air smells like decay and ash.\n\n";
+	std::cout << "You hear a noise outside and the sound of approaching steps.\n\n";
+	std::cout << "In the distance, a porthole opens where white light pours plentiful.\n\n";
+	std::cout << "Two dry sounds you hear before the light suddenly vanishes.\n\n";
+	std::cout << "Something rolls towards and touches your bare feet.\n\nYour fingers touch its cold, soft surface; it is a FLASHLIGHT.\n\n";
 }
 
 
@@ -252,17 +260,26 @@ bool analyze_text(std::string input) {
 		if(player.equip_slot_rHand != NULL && input.find(player.equip_slot_rHand->name) != std::string::npos) {
 			
 			if(input.find("ON") != std::string::npos) {
+				
+				if(player.current_grid->visible == false && 
+					strcmp(player.equip_slot_rHand->status.c_str(), "off") == 0) player.current_grid->visible = true;
+
 				player.equip_slot_rHand->status = "on";
 				std::cout << player.equip_slot_rHand->name << " now is on\n\n";
 			} else if(input.find("OFF") != std::string::npos) {
+
+				if(player.current_grid->visible == true && 
+					strcmp(player.equip_slot_rHand->status.c_str(), "on") == 0) player.current_grid->visible = false;
+
 				player.equip_slot_rHand->status = "off";
 				std::cout << player.equip_slot_rHand->name << " now is off\n\n";
+				if(player.current_grid->visible == true) player.current_grid->visible = false;
 			} else {
-				std::cout << "Try TURNING " << player.equip_slot_rHand->name << " ON or OFF\n\n";
+				std::cout << "Try TURNing " << player.equip_slot_rHand->name << " ON or OFF\n\n";
 			}
 
 		} else {
-			std::cout << "Turn what?" << std::endl;
+			std::cout << "TURN what?" << std::endl;
 		}
 	}
 	
@@ -294,9 +311,8 @@ bool analyze_text(std::string input) {
 
 void init(void) {
 	setup_map();
-	setup_player();
-
 	play_intro();
+	setup_player();
 
 	std::string input = "LOOK AROUND";
 
