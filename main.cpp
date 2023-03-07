@@ -6,21 +6,27 @@
 
 #define MAX_NUM_ITEMS 10
 
+enum types {TURNABLE = 0, SCENERY = 1, READABLE = 2, USABLE = 3};
+
+struct st_grid;
+
 // Data Types
 struct st_object {
 	std::string name, color, material, status;
+	int type;
 	struct st_object* next;
 };
 
-struct st_space {
-	bool created;
-	std::string info;
-	st_object* objects;
+struct st_door {
+	bool created, open;
+	st_grid *next;
 };
 
 struct st_grid {
 	bool created, visible;
-	struct st_space east, west, north, south, center;
+	std::string info;
+	st_object* objects;
+	struct st_door *east, *west, *north, *south, *center;
 };
 
 struct ch_inventory {
@@ -51,11 +57,11 @@ int id_count = 0;
 
 
 // Adds a new object to the linked list
-st_object* add_newobject(st_object* obj, std::string name, std::string color, std::string material, std::string status) {
+st_object* add_newobject(st_object* obj, std::string name, std::string color, std::string material, std::string status, int type) {
 	st_object* o = obj;
 
 	if (o == NULL) {
-		o = new st_object;
+		o = new st_object();
 		o->name = name;
 		o->color = color;
 		o->material = material;
@@ -67,7 +73,7 @@ st_object* add_newobject(st_object* obj, std::string name, std::string color, st
 			o = o->next;
 		}
 
-		o->next = new st_object;
+		o->next = new st_object();
 		o->next->name = name;
 		o->next->color = color;
 		o->next->material = material;
@@ -80,11 +86,11 @@ st_object* add_newobject(st_object* obj, std::string name, std::string color, st
 
 
 // Clean up memory
-void clean_space(st_space *spc) {
-	if (spc == NULL) return;
+void clean_grid(st_grid *grid) {
+	if (grid == NULL) return;
 
-	if (spc->created) {
-		st_object *o = spc->objects;
+	if (grid->created) {
+		st_object *o = grid->objects;
 		st_object *t = NULL;
 		
 		if (o == NULL) return;
@@ -98,63 +104,44 @@ void clean_space(st_space *spc) {
 	}
 }
 
-void clean_grid(st_grid *grid) {
-	clean_space(&grid->north);
-	clean_space(&grid->east);
-	clean_space(&grid->south);
-	clean_space(&grid->west);
-}
-
 void setup_map(void) {
 	st_object *obj;
 	world[0][0].created = true;
 	world[0][0].visible = false;
+	world[0][0].objects = NULL;
 
-	// GRID 0, 0 NORTH
-	world[0][0].north.created = true;
-	world[0][0].north.info = "After the door closes behind you. with a loud BANG! You find yourself in an ill iluminated room. There is a putrid smell coating the air.";
-	obj = add_newobject(world[0][0].north.objects, "door", "black", "wood", "locked");
-	obj = add_newobject(world[0][0].north.objects, "notebook", "red", "leather", "worn out");
+	// Create Map
+	// World[0][0] - CELL
+	world[0][0].info = "A small square cell a couple of steps long. The cell has a bed and a toilet otherwise it is barren and empty.\n";
+	// add_newobject(st_object* obj, std::string name, std::string color, std::string material, std::string status, std::string type)
+	obj = add_newobject(world[0][0].objects, "toilet", "white", "ceramic", "dirty", types::USABLE);
+	world[0][0].objects = obj;
+	add_newobject(world[0][0].objects, "walls", "gray", "concrete", "impenetrable", types::SCENERY);
+	world[0][0].objects = obj;
+	add_newobject(world[0][0].objects, "notebook", "black", "leather", "light", types::READABLE);
 
-	// GRID 0,0 EAST
-	world[0][0].east.created = true;
-	world[0][0].east.info = ".";
-	obj = add_newobject(world[0][0].east.objects, "air", "dark", "gas", "rotten");
+	world[0][0].north  = NULL;
+	world[0][0].east   = NULL;
+	world[0][0].south  = NULL;
+	world[0][0].west   = NULL;
+	world[0][0].center = NULL;
 
-	// GRID 0, 0 WEST
-	world[0][0].west.created = true;
-	world[0][0].west.info = "a Door to the next room.";
-	obj = add_newobject(world[0][0].west.objects, "door", "brown", "wooden", "destroyed");
-
-
-	//// GRID 0, 0 CENTER
-	world[0][0].center.created = true;
-	world[0][0].center.info = "The floor is decorated with a symbol. The symbol is magical in nature.";
-	obj = add_newobject(world[0][0].center.objects, "symbol", "black", "ink", "incomplete");
 }
 
-void describe_space(st_space* space) {
-	std::cout << space->info << std::endl;
-
-	std::cout << "Where you can interact with: " << std::endl;
-	tmp_obj = space->objects;
-
-	while (tmp_obj != NULL) {
-		std::cout << tmp_obj->name << std::endl;
-		tmp_obj = tmp_obj->next;
-	}
-	
-}
-
-void describe_grid(st_grid *grid) {
-
+void describe_grid(st_grid* grid) {
 	if (grid->visible) {
-		describe_space(&grid->north);
-		describe_space(&grid->east);
-		describe_space(&grid->south);
-		describe_space(&grid->west);
-	}
-	else {
+		std::cout << grid->info << std::endl;
+
+		if(grid->objects != NULL) {
+			std::cout << "Where you can interact with: " << std::endl;
+			tmp_obj = grid->objects;
+
+			while (tmp_obj != NULL) {
+				std::cout << "\t- *" << tmp_obj->name << std::endl;
+				tmp_obj = tmp_obj->next;
+			}
+		}
+	} else {
 		std::cout << "It is dark around. You will have to find a source of light if you'd like to see something.\n\n";
 	}
 	
@@ -191,8 +178,8 @@ void describe_inventory(const ch_inventory* inventory) {
 	}
 }
 
-void add_to_inventory(std::string name, std::string color, std::string material, std::string state) {
-	st_object *obj = add_newobject(player.inventory.items, name, color, material, state);
+void add_to_inventory(std::string name, std::string color, std::string material, std::string state, int type) {
+	st_object *obj = add_newobject(player.inventory.items, name, color, material, state, type);
 	player.inventory.items = obj;
 	player.inventory.num_items += 1;
 
@@ -202,7 +189,7 @@ void add_to_inventory(std::string name, std::string color, std::string material,
 void setup_player(void) {
 
 	player.current_grid = &world[0][0];
-	add_to_inventory("FLASHLIGHT", "black", "hard plastic", "off");
+	add_to_inventory("FLASHLIGHT", "black", "hard plastic", "off", types::TURNABLE);
 	
 }
 
@@ -244,13 +231,13 @@ bool analyze_text(std::string input) {
 			if(input.find("RIGHT") != std::string::npos) {
 				player.equip_slot_rHand = o;
 				player.inventory.num_items -= 1;
-				std::cout << o->name << " was equippted in right hand\n\n";
+				std::cout << o->name << " was equipped in right hand\n\n";
 			} else if(input.find("LEFT") != std::string::npos) {
 				player.equip_slot_lHand = o;
 				player.inventory.num_items -= 1;
-				std::cout << o->name << " was equipted in left hand\n\n";
+				std::cout << o->name << " was equipped in left hand\n\n";
 			} else {
-				std::cout << "Try equipping in RIGHT or LEFT hand";
+				std::cout << "Try equipping in RIGHT or LEFT hand\n\n";
 			}
 		} else {
 			std::cout << "Cannot EQUIP that item\n\n" << std::endl;
@@ -260,30 +247,39 @@ bool analyze_text(std::string input) {
 
 	else if(input.find("TURN") != std::string::npos) {
 
-		if(player.equip_slot_rHand != NULL && input.find(player.equip_slot_rHand->name) != std::string::npos) {
-			
-			if(input.find("ON") != std::string::npos) {
-				
-				if(player.current_grid->visible == false && 
-					strcmp(player.equip_slot_rHand->status.c_str(), "off") == 0) player.current_grid->visible = true;
+		st_object *turnable = NULL;
 
-				player.equip_slot_rHand->status = "on";
-				std::cout << player.equip_slot_rHand->name << " now is on\n\n";
-			} else if(input.find("OFF") != std::string::npos) {
-
-				if(player.current_grid->visible == true && 
-					strcmp(player.equip_slot_rHand->status.c_str(), "on") == 0) player.current_grid->visible = false;
-
-				player.equip_slot_rHand->status = "off";
-				std::cout << player.equip_slot_rHand->name << " now is off\n\n";
-				if(player.current_grid->visible == true) player.current_grid->visible = false;
-			} else {
-				std::cout << "Try TURNing " << player.equip_slot_rHand->name << " ON or OFF\n\n";
-			}
-
-		} else {
-			std::cout << "TURN what?" << std::endl;
+		// Nothing equipped
+		if(player.equip_slot_lHand == NULL && player.equip_slot_rHand == NULL) {
+			std::cout << "Try EQUIPping something first\n\n";
 		}
+
+		// If there is something equipped in left hand and it was mentioned in the player mandate
+		if(player.equip_slot_lHand != NULL && input.find(player.equip_slot_lHand->name) != std::string::npos) {
+			turnable = player.equip_slot_lHand;
+		} else if (player.equip_slot_rHand != NULL && input.find(player.equip_slot_rHand->name) != std::string::npos) {
+			turnable = player.equip_slot_rHand;
+		} else {
+			std::cout << "Couldn't find the item requested\n\n";
+		}
+
+		// Not type turnable
+		if(turnable != NULL && turnable->type != types::TURNABLE) {
+			std::cout << turnable->name << " cannot be turned on or off\n\n";
+		// Turning on
+		} else if(turnable != NULL && input.find("ON") != std::string::npos) {
+			if(player.current_grid->visible == false) player.current_grid->visible = true;
+			turnable->status = "on";
+			std::cout << turnable->name << " is now ON\n\n";
+		// Turning off
+		} else if(turnable != NULL && input.find("OFF") != std::string::npos) {
+			if(player.current_grid->visible == true && strcmp(turnable->status.c_str(), "on") == 0) player.current_grid->visible = false;
+			turnable->status = "off";
+			std::cout << turnable->name << " is now OFF\n\n";
+		} else {
+			std::cout << "Try TURNING something ON or OFF\n\n";
+		}
+		
 	}
 	
 	else if (input.find("MOVE") != std::string::npos) {
